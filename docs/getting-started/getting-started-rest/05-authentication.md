@@ -74,7 +74,7 @@ namespace Pets {
   };
 
   @post
-  @useAuth(BearerAuth)
+  @useAuth(BearerAuth) // <+>
   op createPet(@body pet: Pet, ...CommonParameters): {
     @statusCode statusCode: 201;
     @body newPet: Pet;
@@ -84,7 +84,7 @@ namespace Pets {
   };
 
   @put
-  @useAuth(BearerAuth)
+  @useAuth(BearerAuth) // <+>
   op updatePet(@path petId: int32, @body pet: Pet, ...CommonParameters):
     | {
         @body updatedPet: Pet;
@@ -96,10 +96,13 @@ namespace Pets {
         @statusCode statusCode: 400;
         @body error: ValidationError;
       }
-    | InternalServerErrorResponse;
+    | {
+        @statusCode statusCode: 500;
+        @body error: InternalServerError;
+      };
 
   @delete
-  @useAuth(BearerAuth)
+  @useAuth(BearerAuth) // <+>
   op deletePet(@path petId: int32, ...CommonParameters): {
     @statusCode statusCode: 204;
   } | {
@@ -137,6 +140,84 @@ In this example:
 - The `@useAuth(BearerAuth)` decorator is applied to the `createPet`, `updatePet`, and `deletePet` operations to enforce authentication using the Bearer authentication mechanism.
 - Bearer authentication uses tokens for access control. The server generates a token upon login, and the client includes it in the Authorization header for protected resource requests.
 
+### Example: OpenAPI Specification for Authentication
+
+Let's take a closer look at how the `@useAuth` decorator affects the generated OpenAPI specification for the `deletePet` operation.
+
+```yaml
+paths:
+  /pets/{petId}:
+    delete:
+      operationId: Pets_deletePet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - $ref: '#/components/parameters/CommonParameters.requestID'
+        - $ref: '#/components/parameters/CommonParameters.locale'
+        - $ref: '#/components/parameters/CommonParameters.clientVersion'
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: 'There is no content to send for this request, but the headers may be useful.'
+        '404':
+          description: 'Not Found'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+components:
+  parameters:
+    CommonParameters.clientVersion:
+      name: client-version
+      in: header
+      required: false
+      schema:
+        type: string
+    CommonParameters.locale:
+      name: locale
+      in: query
+      required: false
+      schema:
+        type: string
+    CommonParameters.requestID:
+      name: request-id
+      in: header
+      required: true
+      schema:
+        type: string
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    NotFoundError:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "NOT_FOUND"
+        message:
+          type: string
+```
+
+### Explanation
+
+- **Security Section**: The `security` section in the `deletePet` operation specifies that Bearer authentication is required. This is indicated by the `BearerAuth` security scheme.
+- **Security Schemes**: The `components` section includes a `securitySchemes` definition for `BearerAuth`, specifying that it uses the HTTP bearer authentication scheme.
+
+### Benefits
+
+1. **Security**: Ensures that only authorized clients can perform certain actions by enforcing authentication on specific operations.
+2. **Consistency**: The use of common parameters and authentication mechanisms is consistently applied across relevant operations.
+3. **Clarity**: The generated OpenAPI specification clearly shows which operations require authentication and which parameters are needed, improving the documentation and usability of the API.
+
 ## Conclusion
 
 In this section, we focused on adding authentication to your REST API using TypeSpec. By using the `@useAuth` decorator, we can enforce authentication on specific operations, ensuring that only authorized clients can perform certain actions.
+
+In the next section, we'll dive into versioning your REST API. Versioning allows you to introduce new features and improvements while maintaining backward compatibility for existing clients.

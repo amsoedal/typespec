@@ -14,14 +14,20 @@ Before we can use the versioning decorators, we need to add the `@typespec/versi
 
 ### Step 1: Update `package.json`
 
-Add the `@typespec/versioning` library to your `package.json` file:
+Add the `@typespec/versioning` library to your `package.json` file, in both the `peerDependencies` and `devDependencies` sections. Your updated `package.json` should look like this:
 
 ```json
 {
-  "name": "tsp_pet_store",
+  "name": "typespec-petstore",
   "version": "0.1.0",
   "type": "module",
-  "dependencies": {
+  "peerDependencies": {
+    "@typespec/compiler": "latest",
+    "@typespec/http": "latest",
+    "@typespec/openapi3": "latest",
+    "@typespec/versioning": "latest"
+  },
+  "devDependencies": {
     "@typespec/compiler": "latest",
     "@typespec/http": "latest",
     "@typespec/openapi3": "latest",
@@ -47,24 +53,26 @@ The [`@versioned`](../../libraries/versioning/reference/decorators#@TypeSpec.Ver
 
 Let's define two versions of our API, `v1` and `v2`:
 
-```typespec
+```tsp tryit="{"emit": ["@typespec/openapi3"]}"
 import "@typespec/http";
-import "@typespec/versioning";
+import "@typespec/versioning"; // <+>
 
 using TypeSpec.Http;
-using TypeSpec.Versioning;
+using TypeSpec.Versioning; // <+>
 
 @service({
   title: "Pet Store",
 })
 @server("https://example.com", "Single server endpoint")
-@versioned(Versions)
+@versioned(Versions) // <+>
 namespace PetStore;
 
+// <+>
 enum Versions {
   v1: "1.0",
   v2: "2.0",
 }
+// </+>
 ```
 
 In this example:
@@ -72,6 +80,26 @@ In this example:
 - We're importing and using a new module, `@typespec/versioning`, which provides versioning support.
 - The `@versioned` decorator is used to define the versions supported by the API, defined in the `Versions` enum.
 - The `Versions` enum specifies two versions: `v1` (1.0) and `v2` (2.0).
+
+### Generating OpenAPI Specifications for Different Versions
+
+Once we start adding versions, the TypeSpec compiler will generate individual OpenAPI specifications for each version. In our case, it will generate two OpenAPI specs, one for each version of our pet store service API. Our file structure will now look like this:
+
+```
+main.tsp
+tspconfig.yaml
+package.json
+node_modules/
+tsp-output/
+┗ @typespec/
+  ┗ openapi3/
+    ┣ openapi.1.0.yaml
+    ┗ openapi.2.0.yaml
+```
+
+Generating separate specs for each version ensures backward compatibility, provides clear documentation for developers to understand differences between versions, and simplifies maintenance by allowing independent updates to each version's specifications.
+
+By encapsulating different versions of the API within the context of the same TypeSpec project, we can manage all versions in a unified manner. This approach makes it easier to maintain consistency, apply updates, and ensure that all versions are properly documented and aligned with the overall API strategy.
 
 ## Using the `@added` Decorator
 
@@ -121,11 +149,13 @@ enum petType {
   reptile: "reptile",
 }
 
+// <+>
 @added(Versions.v2)
 model Toy {
   id: int32;
   name: string;
 }
+// </+>
 ```
 
 In this example:
@@ -232,7 +262,10 @@ namespace Pets {
         @statusCode statusCode: 400;
         @body error: ValidationError;
       }
-    | InternalServerErrorResponse;
+    | {
+        @statusCode statusCode: 500;
+        @body error: InternalServerError;
+      };
 
   @delete
   @useAuth(BearerAuth)
@@ -242,6 +275,7 @@ namespace Pets {
     @body error: NotFoundError;
   };
 
+  // <+>
   @route("{petId}/toys")
   namespace Toys {
     @added(Versions.v2)
@@ -272,6 +306,7 @@ namespace Pets {
       @statusCode statusCode: 204;
     };
   }
+  // </+>
 }
 
 @error
@@ -305,26 +340,9 @@ In this example:
 - The `@added(Versions.v2)` decorator is applied to the operations within the `Toys` namespace to indicate that they were added in version 2 of the API.
 - The `Toys` namespace includes operations to list, create, update, and delete toys for a specific pet. These operations are only available in version 2 of the API.
 
-### Generating OpenAPI Specifications for Different Versions
-
-Once we start adding versions, the TypeSpec compiler will generate individual OpenAPI specifications for each version. In our case, it will generate two OpenAPI specs, one for each version of our pet store service API. Our file structure will now look like this:
-
-```
-main.tsp
-tspconfig.yaml
-package.json
-node_modules/
-tsp-output/
-┗ @typespec/
-  ┗ openapi3/
-┃   ┣ openapi.1.0.yaml
-┃   ┗ openapi.2.0.yaml
-```
-
-The 2.0 version of the OpenAPI spec will include the Toy model and any other additions specified for version 2 of our service, while the 1.0 version will not include these additions.
-
-Generating separate specs for each version ensures backward compatibility, provides clear documentation for developers to understand differences between versions, and simplifies maintenance by allowing independent updates to each version's specifications.
-
 ## Conclusion
 
 In this section, we focused on implementing versioning in your REST API. By using the `@versioned` and `@added` decorators, we can manage changes to our API over time without breaking existing clients.
+
+
+In the next section, we'll dive into creating custom response models for your REST API.

@@ -24,13 +24,14 @@ Let's start by defining some basic custom response models. We'll incorporate exi
 
 ### Example: Defining Basic Custom Response Models
 
-```typespec
+```tsp tryit="{"emit": ["@typespec/openapi3"]}"
 import "@typespec/http";
 import "@typespec/versioning";
 
 using TypeSpec.Http;
 using TypeSpec.Versioning;
 
+// <+>
 model PetListResponse {
   ...OkResponse;
   ...Body<Pet[]>;
@@ -50,6 +51,7 @@ model PetErrorResponse {
   ...BadRequestResponse;
   ...Body<ValidationError>;
 }
+// </+>
 ```
 
 In this example:
@@ -59,13 +61,15 @@ In this example:
 - `PetCreatedResponse` extends `CreatedResponse` and includes a body with a newly created `Pet` object.
 - `PetErrorResponse` extends `BadRequestResponse` and includes a body with a `ValidationError` object.
 
+**Note**: Base response models like `OkResponse`, `CreatedResponse`, and `BadRequestResponse` are imported from the TypeSpec HTTP library.
+
 ## Extending Base Response Models
 
 We can extend base response models to create more specific responses for different scenarios.
 
 ### Example: Extending Base Response Models
 
-```typespec
+```tsp
 model PetNotFoundResponse {
   ...NotFoundResponse;
   ...Body<NotFoundError>;
@@ -151,6 +155,7 @@ model CommonParameters {
   clientVersion?: string;
 }
 
+// <+>
 model PetListResponse {
   ...OkResponse;
   ...Body<Pet[]>;
@@ -185,35 +190,44 @@ model PetSuccessResponse {
   ...OkResponse;
   ...Body<string>;
 }
+// </+>
 
 @route("/pets")
 namespace Pets {
   @get
-  op listPets(...CommonParameters): PetListResponse | BadRequestResponse;
+  op listPets(...CommonParameters):
+    PetListResponse                 // <+>
+  | BadRequestResponse;             // <+>
 
   @get
   op getPet(
     @path petId: int32,
-    @header ifMatch?: string,
-  ): PetResponse | PetNotFoundResponse | BadRequestResponse;
+    @header ifMatch?: string):
+    PetResponse                     // <+>
+  | PetNotFoundResponse             // <+>
+  | BadRequestResponse;             // <+>
 
   @useAuth(BearerAuth)
   @post
-  op createPet(@body pet: Pet): PetCreatedResponse | PetErrorResponse;
+  op createPet(@body pet: Pet):
+    PetCreatedResponse              // <+>
+  | PetErrorResponse;               // <+>
 
   @useAuth(BearerAuth)
   @put
   op updatePet(@path petId: int32, @body pet: Pet):
-    | PetResponse
-    | PetNotFoundResponse
-    | PetUnauthorizedResponse
-    | InternalServerErrorResponse;
+    PetResponse                     // <+>
+  | PetNotFoundResponse             // <+>
+  | PetUnauthorizedResponse         // <+>
+  | InternalServerErrorResponse;    // <+>
 
   @useAuth(BearerAuth)
   @delete
   op deletePet(
-    @path petId: int32,
-  ): PetNotFoundResponse | PetSuccessResponse | PetUnauthorizedResponse;
+    @path petId: int32,):
+    PetNotFoundResponse             // <+>
+  | PetSuccessResponse              // <+>
+  | PetUnauthorizedResponse;        // <+>
 
   @route("{petId}/toys")
   namespace Toys {
@@ -265,11 +279,12 @@ model InternalServerError {
   code: "INTERNAL_SERVER_ERROR";
   message: string;
 }
-
+// <+>
 model InternalServerErrorResponse {
   @statusCode statusCode: 500;
   @body error: InternalServerError;
 }
+// </+>
 ```
 
 In this example:
